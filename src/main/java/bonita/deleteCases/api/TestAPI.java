@@ -29,8 +29,12 @@ public class TestAPI {
     /*static final String username = "jan.fisher";
     static final String password = "bpm";*/
 
-    static final String username = "install";
-    static final String password = "install";
+/*    static final String username = "install";
+    static final String password = "install";*/
+
+    static final String username = "walter.bates";
+    static final String password = "bpm";
+
 
     private static final long ONE_MONTH = 30l * 24l * 60l * 60l * 1000l;
 
@@ -38,7 +42,7 @@ public class TestAPI {
 		
 		Logger logger = Logger.getLogger("DeleteArchivedCases");
 
-		String serverURL = args[0];
+		String serverURL = "http://localhost:" + "11886";
         int pageSize = Integer.valueOf(args[1]);
         int pageNumber = Integer.valueOf(args[2]);
 

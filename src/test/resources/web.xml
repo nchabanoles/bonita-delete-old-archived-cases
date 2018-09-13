@@ -203,12 +203,14 @@
         <url-pattern>/portal/resource/*</url-pattern>
         <url-pattern>/apps/*</url-pattern>
     </filter-mapping>
+
     <filter-mapping>
         <filter-name>RestAPIAuthorizationFilter</filter-name>
         <url-pattern>/API/*</url-pattern>
-        
         <!-- Nicolas Danila -->
-        <url-pattern>/serverAPI/org.bonitasoft.engine.api.ProcessAPI</url-pattern>
+        <url-pattern>/serverAPI/org.bonitasoft.engine.api.ProcessAPI/*</url-pattern>
+        <url-pattern>/serverAPI/com.bonitasoft.engine.api.ProcessAPI/*</url-pattern>
+
         <!-- FIXME: List all engine apis -->
 
 
@@ -427,6 +429,12 @@
         <servlet-name>loginService</servlet-name>
         <servlet-class>org.bonitasoft.console.common.server.login.servlet.LoginServlet</servlet-class>
     </servlet>
+    <!-- Nicolas Danila-->
+    <servlet>
+        <servlet-name>engineLoginService</servlet-name>
+        <servlet-class>org.bonitasoft.console.common.server.login.servlet.EngineLoginServlet</servlet-class>
+    </servlet>
+
     <servlet>
         <servlet-name>logoutService</servlet-name>
         <servlet-class>org.bonitasoft.console.common.server.login.servlet.LogoutServlet</servlet-class>
@@ -737,10 +745,18 @@
         <url-pattern>/API/avatars/*</url-pattern>
         <url-pattern>/portal/custom-page/API/avatars/*</url-pattern>
     </servlet-mapping>
+    
     <servlet-mapping>
         <servlet-name>loginService</servlet-name>
         <url-pattern>/loginservice</url-pattern>
     </servlet-mapping>
+    <!-- Nicolas Danila-->
+    <servlet-mapping>
+        <servlet-name>engineLoginService</servlet-name>
+        <url-pattern>/serverAPI/org.bonitasoft.engine.api.LoginAPI/login</url-pattern>
+        <url-pattern>/serverAPI/com.bonitasoft.engine.api.LoginAPI/login</url-pattern>
+    </servlet-mapping>
+
     <servlet-mapping>
         <servlet-name>logoutService</servlet-name>
         <url-pattern>/logoutservice</url-pattern>
