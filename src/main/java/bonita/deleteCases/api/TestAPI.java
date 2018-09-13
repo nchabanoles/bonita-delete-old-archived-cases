@@ -11,8 +11,12 @@ import java.util.stream.Collectors;
 
 import org.bonitasoft.engine.api.APIClient;
 import org.bonitasoft.engine.api.ApiAccessType;
+import org.bonitasoft.engine.api.LoginAPI;
 import org.bonitasoft.engine.api.ProcessAPI;
+import org.bonitasoft.engine.api.TenantAPIAccessor;
 import org.bonitasoft.engine.search.SearchOptions;
+import org.bonitasoft.engine.session.APISession;
+import org.bonitasoft.engine.session.Session;
 import org.bonitasoft.engine.util.APITypeManager;
 import org.bonitasoft.engine.bpm.process.ArchivedProcessInstance;
 import org.bonitasoft.engine.bpm.process.ArchivedProcessInstancesSearchDescriptor;
@@ -22,8 +26,11 @@ import org.bonitasoft.engine.search.SearchResult;
 
 public class TestAPI {
 
-    static final String username = "walter.bates";
-    static final String password = "bpm";
+    /*static final String username = "jan.fisher";
+    static final String password = "bpm";*/
+
+    static final String username = "install";
+    static final String password = "install";
 
     private static final long ONE_MONTH = 30l * 24l * 60l * 60l * 1000l;
 
@@ -41,13 +48,14 @@ public class TestAPI {
 		try {
 
 		    // Personal preference to use APIClient as I find it easier to test
-            APIClient bonitaClient = buildClientForHTTPServer(serverURL);
+            buildClientForHTTPServer(serverURL);
 
-            bonitaClient.login(username, password);
+            LoginAPI loginAPI = TenantAPIAccessor.getLoginAPI();
+            APISession session = loginAPI.login(username, password);
 
-			ProcessAPI processAPI = bonitaClient.getProcessAPI();
+            ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
 
-			Long lastMonth = Calendar.getInstance().getTimeInMillis() - ONE_MONTH;
+			Long lastMonth = System.currentTimeMillis() - ONE_MONTH;
             SearchOptionsBuilder sob = new SearchOptionsBuilder(0, pageSize);
             sob.sort(ArchivedProcessInstancesSearchDescriptor.ARCHIVE_DATE, Order.ASC);
             SearchOptions options = sob.done();
@@ -61,7 +69,7 @@ public class TestAPI {
 
 				SearchResult<ArchivedProcessInstance> sr = processAPI.searchArchivedProcessInstances(options);
 
-				idsOfCasesToDelete = sr.getResult().stream().filter(ap->ap.getArchiveDate().getTime()<lastMonth).map(ap -> ap.getSourceObjectId())
+				idsOfCasesToDelete = sr.getResult().stream().map(ap -> ap.getSourceObjectId())
 						.collect(Collectors.toList());
 				
 				logger.info(idsOfCasesToDelete.size() +" cases found");
@@ -76,7 +84,7 @@ public class TestAPI {
 				
 			} while (numberOfCasesToDelete > 0 && idsOfCasesToDelete.size()>0); // Iterate until we deleted the requested number of cases or there is no more older than last month
 
-			bonitaClient.logout();
+			loginAPI.logout(session);
 
 		} catch (Exception e) {
 
