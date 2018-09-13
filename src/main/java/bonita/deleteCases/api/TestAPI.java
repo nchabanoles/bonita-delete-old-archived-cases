@@ -9,72 +9,86 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.bonitasoft.engine.api.APIClient;
 import org.bonitasoft.engine.api.ApiAccessType;
-import org.bonitasoft.engine.api.IdentityAPI;
-import org.bonitasoft.engine.api.LoginAPI;
 import org.bonitasoft.engine.api.ProcessAPI;
-import org.bonitasoft.engine.api.TenantAPIAccessor;
-import org.bonitasoft.engine.identity.User;
-import org.bonitasoft.engine.identity.UserCriterion;
-import org.bonitasoft.engine.session.APISession;
+import org.bonitasoft.engine.search.SearchOptions;
 import org.bonitasoft.engine.util.APITypeManager;
 import org.bonitasoft.engine.bpm.process.ArchivedProcessInstance;
 import org.bonitasoft.engine.bpm.process.ArchivedProcessInstancesSearchDescriptor;
-import org.bonitasoft.engine.bpm.process.ProcessInstanceSearchDescriptor;
 import org.bonitasoft.engine.search.Order;
 import org.bonitasoft.engine.search.SearchOptionsBuilder;
 import org.bonitasoft.engine.search.SearchResult;
 
 public class TestAPI {
-	public static void main(String args[]) {
+
+    static final String username = "walter.bates";
+    static final String password = "bpm";
+
+    private static final long ONE_MONTH = 30l * 24l * 60l * 60l * 1000l;
+
+    public static void main(String args[]) {
 		
 		Logger logger = Logger.getLogger("DeleteArchivedCases");
+
+		String serverURL = args[0];
+        int pageSize = Integer.valueOf(args[1]);
+        int pageNumber = Integer.valueOf(args[2]);
+
+        int numberOfCasesToDelete=pageSize * pageNumber;
+        logger.info("You asked me to delete at most "+ numberOfCasesToDelete+ " cases.");
+
 		try {
 
-			Map<String, String> map = new HashMap<String, String>();
-			map.put("server.url",args[0]);
-			map.put("application.name", "bonita");
-			APITypeManager.setAPITypeAndParams(ApiAccessType.HTTP, map);
-			final String username = "POAdmin#1";
-			final String password = "bpm";
-			final LoginAPI loginAPI = TenantAPIAccessor.getLoginAPI();
-			final APISession session = loginAPI.login(username, password);
+		    // Personal preference to use APIClient as I find it easier to test
+            APIClient bonitaClient = buildClientForHTTPServer(serverURL);
 
-			ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
+            bonitaClient.login(username, password);
 
-			long nbDeletedProcessInstances = 0;
-			int numberOfCases=Integer.valueOf(args[1]);
+			ProcessAPI processAPI = bonitaClient.getProcessAPI();
 
-			Long millis = System.currentTimeMillis() - (30 * 24 * 60 * 60 * 1000 );
-			int iterations=Integer.valueOf(args[2]);
+			Long lastMonth = Calendar.getInstance().getTimeInMillis() - ONE_MONTH;
+            SearchOptionsBuilder sob = new SearchOptionsBuilder(0, pageSize);
+            sob.sort(ArchivedProcessInstancesSearchDescriptor.ARCHIVE_DATE, Order.ASC);
+            SearchOptions options = sob.done();
 
-			
+
+            List<Long> idsOfCasesToDelete;
+
 			do {
-				logger.info("Deleting "+ numberOfCases+ " cases");
-				long timeInMillis=Calendar.getInstance().getTimeInMillis();
-				SearchOptionsBuilder sob = new SearchOptionsBuilder(0, numberOfCases);
-				sob.sort(ArchivedProcessInstancesSearchDescriptor.ARCHIVE_DATE, Order.ASC);
-				
-				SearchResult<ArchivedProcessInstance> sr = processAPI.searchArchivedProcessInstances(sob.done());
 
-				List<Long> archivedProcessInstanceIds = sr.getResult().stream().filter(ap->ap.getArchiveDate().getTime()<millis).map(ap -> ap.getSourceObjectId())
+				long startTime=System.currentTimeMillis();
+
+				SearchResult<ArchivedProcessInstance> sr = processAPI.searchArchivedProcessInstances(options);
+
+				idsOfCasesToDelete = sr.getResult().stream().filter(ap->ap.getArchiveDate().getTime()<lastMonth).map(ap -> ap.getSourceObjectId())
 						.collect(Collectors.toList());
 				
-				logger.info(archivedProcessInstanceIds.size() +" cases found");
+				logger.info(idsOfCasesToDelete.size() +" cases found");
 
-				nbDeletedProcessInstances = processAPI
-						.deleteArchivedProcessInstancesInAllStates(archivedProcessInstanceIds);
+				if(idsOfCasesToDelete.size() > 0) {
+                    numberOfCasesToDelete -= (int) processAPI
+                            .deleteArchivedProcessInstancesInAllStates(idsOfCasesToDelete);
 
-				double elapsedTime=(Calendar.getInstance().getTimeInMillis()-timeInMillis)/1000;
-				logger.info(elapsedTime + " seconds elapsed to delete the cases");
+                    double elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
+                    logger.info(elapsedTime + " seconds elapsed to delete the cases");
+                }
 				
-			} while (nbDeletedProcessInstances > 0&&iterations-->0);
+			} while (numberOfCasesToDelete > 0 && idsOfCasesToDelete.size()>0); // Iterate until we deleted the requested number of cases or there is no more older than last month
 
-			loginAPI.logout(session);
+			bonitaClient.logout();
 
 		} catch (Exception e) {
 
-			logger.log(Level.SEVERE, "ERROR RETRIEVING USERS", e);
+			logger.log(Level.SEVERE, "ERROR Deleting archived processes", e);
 		}
 	}
+
+    private static APIClient buildClientForHTTPServer(String serverURL) {
+        Map<String, String> map = new HashMap<String, String>();
+        map.put("server.url", serverURL);
+        map.put("application.name", "bonita");
+        APITypeManager.setAPITypeAndParams(ApiAccessType.HTTP, map);
+        return new APIClient();
+    }
 }
